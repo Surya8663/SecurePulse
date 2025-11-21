@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Step 1: Create Profile</title>
+    <style> 
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; } 
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 200px; border: 2px solid #007bff; border-radius: 4px; padding: 10px; box-sizing: border-box; }
+        button { font-size: 1.2em; padding: 10px 15px; border-radius: 4px; border: none; cursor: pointer; }
+        #save-button { background: #007bff; color: white; }
+        #train-button { background: #28a745; color: white; }
+        #status, #train-status { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Create Your Behavioral Profile</h2>
+        <p>Type normally in the box and move your mouse around. Click "Save Data Batch" every 20-30 seconds.</p>
+        <textarea id="text-editor"></textarea>
+        <br><br>
+        <button id="save-button">Save Data Batch</button>
+        <h3 id="status">Batches collected: 0</h3>
+        <hr>
+        <h2>Step 2: Train Model</h2>
+        <button id="train-button">TRAIN AI MODEL</button>
+        <h3 id="train-status"></h3>
+    </div>
+
+    <script>
+        // --- Keystroke Data ---
+        let keyEvents = [];
+        let lastPressTime = 0;
+        
+        // --- Mouse Data ---
+        let mouseDistance = 0;
+        let clickCount = 0;
+        let lastMousePos = { x: 0, y: 0 };
+
+        // --- Geolocation Data ---
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        const editor = document.getElementById('text-editor');
+
+        // --- Keystroke Listeners ---
+        editor.addEventListener('keydown', (e) => {
+            if (e.key.length > 1) return; 
+            const pressTime = Date.now();
+            if (lastPressTime === 0) { lastPressTime = pressTime; return; }
+            keyEvents.push({ key: e.key, pressTime: pressTime, interval_duration: pressTime - lastPressTime });
+            lastPressTime = pressTime;
+        });
+        editor.addEventListener('keyup', (e) => {
+            if (e.key.length > 1) return;
+            const event = keyEvents.find(k => k.key === e.key && !k.releaseTime);
+            if (event) {
+                event.releaseTime = Date.now();
+                event.press_duration = event.releaseTime - event.pressTime;
+            }
+        });
+
+        // --- Mouse Listeners ---
+        editor.addEventListener('mousemove', (e) => {
+            if (lastMousePos.x === 0) { lastMousePos = { x: e.pageX, y: e.pageY }; return; }
+            let newPos = { x: e.pageX, y: e.pageY };
+            mouseDistance += Math.sqrt(Math.pow(newPos.x - lastMousePos.x, 2) + Math.pow(newPos.y - lastMousePos.y, 2));
+            lastMousePos = newPos;
+        });
+        editor.addEventListener('click', () => { clickCount++; });
+
+        // --- Phase 2: Submit Data Batch ---
+        let batchCount = 0;
+        document.getElementById('save-button').addEventListener('click', () => {
+            const validKeys = keyEvents.filter(k => k.press_duration > 0 && k.press_duration < 1000 && k.interval_duration > 0 && k.interval_duration < 2000);
+            if(validKeys.length < 5) {
+                alert("Please type a bit more for this batch!");
+                return;
+            }
+
+            // Phase 3: Feature Engineering (on Client)
+            const avg_press = validKeys.reduce((acc, k) => acc + k.press_duration, 0) / validKeys.length;
+            const avg_interval = validKeys.reduce((acc, k) => acc + k.interval_duration, 0) / validKeys.length;
+
+            const dataBatch = {
+                avg_press: avg_press,
+                avg_interval: avg_interval,
+                mouse_dist: mouseDistance,
+                clicks: clickCount,
+                timezone: userTimezone
+            };
+
+            // Send the summarized batch to the server
+            fetch('http://localhost:5000/submit-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: dataBatch })
+            })
+            .then(() => {
+                batchCount++;
+                document.getElementById('status').innerText = `Batches collected: ${batchCount}`;
+                // Reset for next batch
+                keyEvents = [];
+                mouseDistance = 0;
+                clickCount = 0;
+                editor.value = ""; // Clear the text box
+            });
+        });
+
+        // --- Phase 4: Train Model ---
+        document.getElementById('train-button').addEventListener('click', () => {
+            document.getElementById('train-status').innerText = "Training in progress...";
+            fetch('http://localhost:5000/train')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('train-status').innerText = `Status: ${data.message || data.status}`;
+                    if(data.status === "model trained successfully") {
+                        document.getElementById('train-status').innerHTML += '<br><a href="/">Go to Live Demo Page</a>';
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

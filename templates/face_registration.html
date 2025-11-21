@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register Face</title>
+    <style>
+        body { font-family: Arial; background: #1a1f2e; color: white; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: #2a2f3e; padding: 20px; border-radius: 10px; }
+        button { background: #00ff88; color: black; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        input { padding: 10px; width: 200px; border-radius: 5px; border: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📷 Register Your Face</h1>
+        
+        <div>
+            <h3>Step 1: Enter User ID</h3>
+            <input type="text" id="user-id" placeholder="Enter user123">
+            <button onclick="registerFace()">Register Face</button>
+        </div>
+        
+        <div id="result" style="margin-top: 20px;"></div>
+        
+        <div style="margin-top: 30px;">
+            <button onclick="location.href='/'" style="background: #66ccff;">← Back to Demo</button>
+        </div>
+    </div>
+
+    <script>
+        function registerFace() {
+            const userId = document.getElementById('user-id').value;
+            if (!userId) {
+                alert('Enter User ID');
+                return;
+            }
+            
+            fetch('http://localhost:5000/register-face', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({user_id: userId})
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('result').innerHTML = 
+                    `<p style="color: #00ff88;">✅ ${data.message} for ${userId}</p>`;
+            });
+        }
+    </script>
+</body>
+</html>

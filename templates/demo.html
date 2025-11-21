@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Security Demo - Behavioral Biometrics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f1419; color: white; margin: 0; padding: 0; }
+        .container { display: flex; gap: 20px; padding: 20px; max-width: 1400px; margin: auto; }
+        .editor { flex: 2; background: #1a1f2e; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .dashboard { flex: 1; background: #1a1f2e; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        textarea { 
+            width: 100%; height: 300px; font-size: 1.1em; 
+            border: 2px solid #00ff88; border-radius: 8px; 
+            background: #0a0e14; color: white; padding: 15px;
+            box-sizing: border-box; font-family: 'Consolas', monospace;
+        }
+        h2 { color: #00ff88; margin-top: 0; }
+        h3 { color: #66ccff; }
+        
+        /* Trust Score Styles */
+        .trust-display { text-align: center; margin: 20px 0; }
+        #trust-score { 
+            font-size: 3.5em; font-weight: bold; 
+            text-shadow: 0 0 20px currentColor;
+            transition: all 0.5s ease;
+        }
+        #trust-level { 
+            font-size: 1.5em; font-weight: bold; 
+            padding: 10px; border-radius: 8px;
+            transition: all 0.5s ease;
+        }
+        
+        /* Status Colors */
+        .verified { color: #00ff88; }
+        .suspicious { color: #ffaa00; }
+        .warning { color: #ff6600; }
+        .anomaly { 
+            color: #ff4444; 
+            animation: redAlert 0.8s infinite;
+        }
+        @keyframes redAlert { 
+            0% { opacity: 1; } 
+            50% { opacity: 0.4; } 
+            100% { opacity: 1; } 
+        }
+        
+        /* Threat Intelligence Panel */
+        .threat-panel { 
+            background: #0a0e14; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0;
+            border-left: 4px solid #00ff88;
+        }
+        .threat-item { 
+            display: flex; 
+            justify-content: space-between; 
+            margin: 8px 0;
+            padding: 5px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+        
+        /* Attack Simulator */
+        .attack-panel { 
+            background: #2a1f2e; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0;
+            border: 1px solid #ff4444;
+        }
+        .attack-btn { 
+            background: #ff4444; 
+            color: white; 
+            border: none; 
+            padding: 8px 15px;
+            margin: 5px; 
+            border-radius: 4px; 
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .attack-btn:hover { background: #ff6666; }
+        
+        .mitigation-banner {
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            background: #ffaa00;
+            color: #000;
+        }
+
+        /* --- NEW: Popup Styles --- */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .popup-content {
+            background: #1a1f2e;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            border: 3px solid #ff4444;
+            box-shadow: 0 0 40px rgba(255, 68, 68, 0.5);
+            animation: popupPulse 2s infinite;
+        }
+
+        @keyframes popupPulse {
+            0% { border-color: #ff4444; box-shadow: 0 0 40px rgba(255, 68, 68, 0.5); }
+            50% { border-color: #ff8888; box-shadow: 0 0 50px rgba(255, 136, 136, 0.7); }
+            100% { border-color: #ff4444; box-shadow: 0 0 40px rgba(255, 68, 68, 0.5); }
+        }
+
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ff4444;
+            padding-bottom: 10px;
+        }
+
+        .timer {
+            background: #ff4444;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .verification-steps {
+            margin: 20px 0;
+        }
+
+        .step {
+            margin: 25px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border-left: 4px solid #ffaa00;
+        }
+
+        .step.verified {
+            border-left-color: #00ff88;
+            background: rgba(0,255,136,0.1);
+        }
+
+        .step.failed {
+            border-left-color: #ff4444;
+            background: rgba(255,68,68,0.1);
+        }
+
+        .verify-btn, .capture-btn {
+            background: #00ff88;
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 10px 0;
+            transition: all 0.3s;
+        }
+
+        .verify-btn:hover, .capture-btn:hover {
+            background: #66ffb3;
+            transform: scale(1.05);
+        }
+
+        .camera-container {
+            margin: 15px 0;
+            text-align: center;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+
+        #camera-feed {
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            max-width: 100%;
+        }
+
+        .popup-footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+            text-align: center;
+            font-size: 0.9em;
+            color: #ccc;
+        }
+
+        .result-success {
+            color: #00ff88;
+            text-align: center;
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+
+        .result-failure {
+            color: #ff4444;
+            text-align: center;
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+                <div class="editor">
+            <h2>🚀 "SecureApp" - Behavioral Biometric Monitoring</h2>
+            <p>Your session is being protected by AI-driven behavioral analysis. Type naturally and move your mouse.</p>
+            <textarea id="live-editor" placeholder="Start typing here... The AI is watching your keystrokes, mouse movements, and behavior patterns in real-time!"></textarea>
+            
+            <div class="attack-panel">
+                <h3>🛡️ Attack Simulator (Demo Mode)</h3>
+                <button class="attack-btn" onclick="simulateAttack('typing_attack')">Simulate Typing Attack</button>
+                <button class="attack-btn" onclick="simulateAttack('mouse_attack')">Simulate Bot Mouse</button>
+                <button class="attack-btn" onclick="simulateAttack('location_attack')">Simulate Location Spoof</button>
+                <button class="attack-btn" onclick="simulateAttack('bot_attack')">Simulate Perfect Bot</button>
+            </div>
+
+            <!-- 🚨 ADD THIS NEW SECTION -->
+            <div class="demo-controls-panel" style="background: linear-gradient(45deg, #ff4444, #cc0000); padding: 15px; border-radius: 8px; margin: 15px 0; border: 3px solid #ff0000; text-align: center;">
+                <h3 style="color: white; margin: 0 0 15px 0;">🚨 DEMO CONTROLS - Test Security Responses</h3>
+                <button onclick="testRegisteredUser()" style="background: #00ff88; color: black; padding: 12px 20px; margin: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: bold; border: 2px solid white;">
+                    ✅ Test Registered User
+                </button>
+                <button onclick="testIntruder()" style="background: #ff4444; color: white; padding: 12px 20px; margin: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: bold; border: 2px solid white; animation: pulseRed 2s infinite;">
+                    🚨 Test Intruder Detection
+                </button>
+                <p style="color: white; margin: 10px 0 0 0; font-size: 0.9em;">
+                    Quickly test both scenarios without waiting for anomalies
+                </p>
+            </div>
+        </div>
+        
+        <div class="dashboard">
+            <h2>🔒 Live Security Dashboard</h2>
+            <hr style="border-color: #333;">
+            
+            <div class="trust-display">
+                <div id="trust-score" class="verified">100</div>
+                <div id="trust-level" class="verified">Verified Identity</div>
+            </div>
+            
+            <div id="mitigation-banner"></div>
+            
+            <h3>🎯 Threat Intelligence</h3>
+            <div class="threat-panel">
+                <div id="threat-details">
+                    <div class="threat-item">
+                        <span>Typing Rhythm:</span>
+                        <span id="typing-threat" class="verified">Normal</span>
+                    </div>
+                    <div class="threat-item">
+                        <span>Mouse Behavior:</span>
+                        <span id="mouse-threat" class="verified">Normal</span>
+                    </div>
+                    <div class="threat-item">
+                        <span>Click Patterns:</span>
+                        <span id="click-threat" class="verified">Normal</span>
+                    </div>
+                    <div class="threat-item">
+                        <span>Location Trust:</span>
+                        <span id="location-threat" class="verified">Verified</span>
+                    </div>
+                </div>
+            </div>
+            
+            <h3>📊 Trust Score Timeline</h3>
+            <div>
+                <canvas id="trustScoreChart"></canvas>
+            </div>
+            
+            <p>📍 Your Timezone: <strong id="tz-display"></strong></p>
+            <p>🆔 Session: <strong id="session-display"></strong></p>
+        </div>
+    </div>
+
+    <!-- NEW: Security Popup -->
+    <div id="security-popup" class="popup-overlay">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h2>🛡️ Security Verification Required</h2>
+                <div class="timer" id="response-timer">0s</div>
+            </div>
+            
+            <div class="popup-body">
+                <p>Unusual behavior detected. Please verify your identity to continue.</p>
+                
+                <div class="verification-steps">
+                    <div class="step" id="step1">
+                        <h3>Step 1: Quick Response Check</h3>
+                        <p>Click verify to proceed with facial recognition. Response time is being analyzed.</p>
+                        <button class="verify-btn" onclick="handleChallengeResponse()">
+                            ✅ Verify Identity
+                        </button>
+                    </div>
+                    
+                    <div class="step" id="step2" style="display: none;">
+    <h3>Step 2: Facial Recognition</h3>
+    <p>Look at the camera for identity verification.</p>
+    <div class="camera-container">
+        <div id="camera-status" style="margin-bottom: 10px;">
+            <span id="camera-status-text">🔴 Camera: Off</span>
+        </div>
+        <video id="camera-feed" width="400" height="300" autoplay muted style="display: none; border: 2px solid #00ff88; border-radius: 8px;"></video>
+        <canvas id="camera-canvas" style="display: none;"></canvas>
+        <div id="camera-placeholder" style="padding: 20px; background: #0a0e14; border-radius: 8px; display: block;">
+            <div style="font-size: 4em;">📷</div>
+            <p>Camera Feed</p>
+            <small>Camera will start automatically...</small>
+        </div>
+    </div>
+    <div style="margin-top: 10px;">
+        <button class="capture-btn" onclick="captureFace()" id="capture-btn">
+            📸 Capture & Verify
+        </button>
+        <button class="verify-btn" onclick="testCamera()" style="background: #66ccff; margin-left: 10px;">
+            🔧 Test Camera
+        </button>
+    </div>
+    <div id="camera-debug" style="margin-top: 10px; font-size: 0.8em; color: #ccc;"></div>
+</div>
+                    
+                    <div class="step" id="step3" style="display: none;">
+                        <h3>Verification Result</h3>
+                        <div id="verification-result"></div>
+                        <p id="result-message"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="popup-footer">
+                <small>Response time and facial recognition are being analyzed for security</small>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced data tracking
+        let keyEvents = [];
+        let lastPressTime = 0;
+        let mouseDistance = 0;
+        let clickCount = 0;
+        let lastMousePos = { x: 0, y: 0 };
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+
+        // NEW: Popup variables
+        let currentChallengeId = null;
+        let popupTriggerTime = null;
+        let responseTimer = null;
+        let currentUserType = 'real_user';
+
+        // Initialize displays
+        document.getElementById('tz-display').innerText = userTimezone;
+        document.getElementById('session-display').innerText = sessionId;
+        
+        const editor = document.getElementById('live-editor');
+        const trustLevel = document.getElementById('trust-level');
+        const trustScore = document.getElementById('trust-score');
+        const mitigationBanner = document.getElementById('mitigation-banner');
+
+        // Event listeners
+        editor.addEventListener('keydown', (e) => {
+            if (e.key.length > 1) return; 
+            const pressTime = Date.now();
+            if (lastPressTime === 0) { lastPressTime = pressTime; return; }
+            keyEvents.push({ key: e.key, pressTime: pressTime, interval_duration: pressTime - lastPressTime });
+            lastPressTime = pressTime;
+        });
+        
+        editor.addEventListener('keyup', (e) => {
+            if (e.key.length > 1) return;
+            const event = keyEvents.find(k => k.key === e.key && !k.releaseTime);
+            if (event) {
+                event.releaseTime = Date.now();
+                event.press_duration = event.releaseTime - event.pressTime;
+            }
+        });
+        
+        editor.addEventListener('mousemove', (e) => {
+            if (lastMousePos.x === 0) { lastMousePos = { x: e.pageX, y: e.pageY }; return; }
+            let newPos = { x: e.pageX, y: e.pageY };
+            mouseDistance += Math.sqrt(Math.pow(newPos.x - lastMousePos.x, 2) + Math.pow(newPos.y - lastMousePos.y, 2));
+            lastMousePos = newPos;
+        });
+        
+        editor.addEventListener('click', () => { clickCount++; });
+
+        // Chart setup
+        const ctx = document.getElementById('trustScoreChart').getContext('2d');
+        const trustChart = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: [], 
+                datasets: [{ 
+                    label: 'Live Trust Score', 
+                    data: [], 
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }] 
+            },
+            options: { 
+                scales: { 
+                    y: { 
+                        min: 0, 
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#ccc' }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#ccc' }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#ccc' } }
+                }
+            }
+        });
+
+        function addDataToChart(label, data) {
+            trustChart.data.labels.push(label);
+            trustChart.data.datasets[0].data.push(data);
+            if (trustChart.data.labels.length > 15) {
+                trustChart.data.labels.shift();
+                trustChart.data.datasets[0].data.shift();
+            }
+            trustChart.update();
+        }
+
+        // --- Enhanced Monitoring with Threat Intelligence ---
+        setInterval(sendCheck, 3000);
+
+        function sendCheck() {
+            const validKeys = keyEvents.filter(k => k.press_duration > 0 && k.press_duration < 1000 && k.interval_duration > 0 && k.interval_duration < 2000);
+            
+            const avg_press = (validKeys.length > 0) ? (validKeys.reduce((acc, k) => acc + k.press_duration, 0) / validKeys.length) : 0;
+            const avg_interval = (validKeys.length > 0) ? (validKeys.reduce((acc, k) => acc + k.interval_duration, 0) / validKeys.length) : 0;
+
+            const dataBatch = {
+                avg_press: avg_press,
+                avg_interval: avg_interval,
+                mouse_dist: mouseDistance,
+                clicks: clickCount,
+                timezone: userTimezone
+            };
+
+            fetch('http://localhost:5000/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: dataBatch, session_id: sessionId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message) { 
+                    trustLevel.innerText = data.message; 
+                    return; 
+                }
+                
+                // Update trust display
+                trustLevel.innerText = data.trust_level;
+                trustScore.innerText = data.trust_score;
+                
+                // Update threat intelligence display
+                updateThreatIntelligence(data.feature_contributions);
+                
+                // Update mitigation banner
+                updateMitigationBanner(data.mitigation_action, data.trust_level);
+                
+                // Update styling
+                updateTrustStyling(data.trust_level.toLowerCase());
+                
+                // Add to chart
+                const now = new Date().toLocaleTimeString().split(" ")[0];
+                addDataToChart(now, data.trust_score);
+
+                // NEW: Trigger security popup if anomaly detected
+                if (data.trigger_challenge && !currentChallengeId) {
+                    console.log("🚨 Triggering security challenge due to anomaly");
+                    setTimeout(() => {
+                        triggerSecurityPopup(sessionId);
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                console.error('Check request failed:', error);
+            });
+
+            // Reset buffers
+            keyEvents = [];
+            mouseDistance = 0;
+            clickCount = 0;
+        }
+
+        // --- NEW: Threat Intelligence Update ---
+        function updateThreatIntelligence(contributions) {
+            updateThreatItem('typing-threat', contributions.typing_rhythm, 'Typing Rhythm');
+            updateThreatItem('mouse-threat', contributions.mouse_behavior, 'Mouse Behavior');
+            updateThreatItem('click-threat', contributions.click_pattern, 'Click Patterns');
+            updateThreatItem('location-threat', contributions.location_trust, 'Location');
+        }
+
+        function updateThreatItem(elementId, score, label) {
+            const element = document.getElementById(elementId);
+            element.textContent = `${score.toFixed(1)}% risk`;
+            
+            element.className = '';
+            if (score < 20) element.classList.add('verified');
+            else if (score < 50) element.classList.add('suspicious');
+            else if (score < 80) element.classList.add('warning');
+            else element.classList.add('anomaly');
+        }
+
+        // --- NEW: Mitigation Actions Display ---
+        function updateMitigationBanner(action, level) {
+            mitigationBanner.textContent = `🛡️ ${action}`;
+            mitigationBanner.className = '';
+            
+            if (level.includes('Verified')) {
+                mitigationBanner.style.background = '#00ff88';
+                mitigationBanner.style.color = '#000';
+            } else if (level.includes('Suspicious')) {
+                mitigationBanner.style.background = '#ffaa00';
+                mitigationBanner.style.color = '#000';
+            } else if (level.includes('Warning')) {
+                mitigationBanner.style.background = '#ff6600';
+                mitigationBanner.style.color = '#000';
+            } else {
+                mitigationBanner.style.background = '#ff4444';
+                mitigationBanner.style.color = '#fff';
+            }
+        }
+
+        // --- NEW: Attack Simulation ---
+        function simulateAttack(attackType) {
+            const validKeys = keyEvents.filter(k => k.press_duration > 0 && k.press_duration < 1000 && k.interval_duration > 0 && k.interval_duration < 2000);
+            
+            const avg_press = (validKeys.length > 0) ? (validKeys.reduce((acc, k) => acc + k.press_duration, 0) / validKeys.length) : 100;
+            const avg_interval = (validKeys.length > 0) ? (validKeys.reduce((acc, k) => acc + k.interval_duration, 0) / validKeys.length) : 150;
+
+            const originalData = {
+                avg_press: avg_press,
+                avg_interval: avg_interval,
+                mouse_dist: mouseDistance,
+                clicks: clickCount,
+                timezone: userTimezone
+            };
+
+            fetch('http://localhost:5000/simulate-attack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    attack_type: attackType, 
+                    original_data: originalData 
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(`🚨 ${attackType.replace('_', ' ').toUpperCase()} simulated!\nTrust Score: ${data.security_response.trust_score}\nAction: ${data.security_response.mitigation_action}`);
+                
+                // Trigger popup for attack simulation
+                if (data.security_response.trigger_challenge) {
+                    setTimeout(() => {
+                        triggerSecurityPopup(sessionId);
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Attack simulation failed:', error);
+                // Fallback: trigger popup directly
+                setTimeout(() => {
+                    triggerSecurityPopup(sessionId);
+                }, 1000);
+            });
+        }
+
+                function updateTrustStyling(level) {
+            trustLevel.className = trustScore.className = '';
+            if (level.includes('verified')) {
+                trustLevel.classList.add('verified');
+                trustScore.classList.add('verified');
+            } else if (level.includes('suspicious')) {
+                trustLevel.classList.add('suspicious');
+                trustScore.classList.add('suspicious');
+            } else if (level.includes('warning')) {
+                trustLevel.classList.add('warning');
+                trustScore.classList.add('warning');
+            } else {
+                trustLevel.classList.add('anomaly');
+                trustScore.classList.add('anomaly');
+            }
+        }
+
+        // ========================
+        // 🚨 DEMO CONTROL FUNCTIONS
+        // ========================
+        function testRegisteredUser() {
+            alert("Testing REGISTERED user flow...\n\nThis will show the normal security popup and grant access to pre-registered users.");
+            
+            // Simulate registered user flow
+            triggerSecurityPopup('demo_registered_user');
+            
+            // Auto-advance through popup steps after delays
+            setTimeout(() => {
+                // Move to step 2 and start camera
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('step2').style.display = 'block';
+                startCamera();
+                
+                // Auto-capture after camera starts
+                setTimeout(() => {
+                    // Use a registered user ID
+                    currentChallengeId = 'demo_registered_challenge';
+                    proceedWithFaceVerificationRegistered();
+                }, 2000);
+            }, 1000);
+        }
+
+        function testIntruder() {
+            alert("Testing INTRUDER detection...\n\nThis will immediately show the RED ALERT page for unregistered users.");
+            
+            // Show the security popup briefly
+            triggerSecurityPopup('demo_intruder_session');
+            
+            // Quickly show popup then jump to red alert
+            setTimeout(() => {
+                document.getElementById('security-popup').style.display = 'none';
+                showRedAlertPage('INTRUDER ALERT: Unauthorized biometric access attempt', 'hacker_007');
+            }, 1500);
+        }
+
+        function proceedWithFaceVerificationRegistered() {
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'block';
+
+            console.log("Demo: Testing registered user verification");
+            
+            // Use a PRE-REGISTERED user ID
+            fetch('http://localhost:5000/verify-face-real', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    user_id: 'john_doe'  // This user is pre-registered
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const resultElement = document.getElementById('verification-result');
+                const messageElement = document.getElementById('result-message');
+                
+                if (data.access_granted) {
+                    resultElement.innerHTML = '<div class="result-success">✅ Identity Verified</div>';
+                    messageElement.textContent = 'Welcome back, ' + data.user_name + '!';
+                    document.getElementById('step3').classList.add('verified');
+                    
+                    // Restore access
+                    setTimeout(() => {
+                        document.getElementById('security-popup').style.display = 'none';
+                        trustScore.textContent = '95';
+                        trustLevel.textContent = 'Verified';
+                        updateTrustStyling('verified');
+                        mitigationBanner.textContent = '🛡️ Full Access Restored';
+                        mitigationBanner.style.background = '#00ff88';
+                        
+                        currentChallengeId = null;
+                    }, 3000);
+                }
+            });
+        }
+
+        // ========================
+        // REAL CAMERA FUNCTIONS
+        // ========================
+        let cameraStream = null;
+        // ... rest of your camera functions continue here
+
+        function startCamera() {
+            const video = document.getElementById('camera-feed');
+            const placeholder = document.getElementById('camera-placeholder');
+            const statusText = document.getElementById('camera-status-text');
+            const debugInfo = document.getElementById('camera-debug');
+            
+            statusText.textContent = "🟡 Camera: Starting...";
+            debugInfo.textContent = "Requesting camera access...";
+            
+            // Check if browser supports camera
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                statusText.textContent = "🔴 Camera: Not Supported";
+                debugInfo.textContent = "This browser doesn't support camera access";
+                return;
+            }
+            
+            // Request camera access
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: "user" // Front camera
+                },
+                audio: false 
+            })
+            .then(stream => {
+                cameraStream = stream;
+                video.srcObject = stream;
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                
+                statusText.textContent = "🟢 Camera: Live";
+                debugInfo.innerHTML = `
+                    ✅ Camera connected<br>
+                    📏 Resolution: ${video.videoWidth}x${video.videoHeight}<br>
+                    🎯 Ready for face capture
+                `;
+                
+                // Auto-play the video
+                video.play();
+                
+                console.log("✅ Camera started successfully");
+            })
+            .catch(error => {
+                console.error('Camera error:', error);
+                statusText.textContent = "🔴 Camera: Error";
+                
+                let errorMessage = "Failed to access camera: ";
+                switch(error.name) {
+                    case 'NotAllowedError':
+                        errorMessage += "Permission denied by user";
+                        break;
+                    case 'NotFoundError':
+                        errorMessage += "No camera found on device";
+                        break;
+                    case 'NotSupportedError':
+                        errorMessage += "Camera not supported";
+                        break;
+                    case 'NotReadableError':
+                        errorMessage += "Camera in use by another application";
+                        break;
+                    default:
+                        errorMessage += error.message;
+                }
+                
+                debugInfo.textContent = errorMessage;
+            });
+        }
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => {
+                    track.stop();
+                });
+                cameraStream = null;
+            }
+            
+            const video = document.getElementById('camera-feed');
+            video.style.display = 'none';
+            video.srcObject = null;
+            
+            document.getElementById('camera-placeholder').style.display = 'block';
+            document.getElementById('camera-status-text').textContent = "🔴 Camera: Off";
+            document.getElementById('camera-debug').textContent = "Camera stopped";
+        }
+
+        function testCamera() {
+            if (cameraStream) {
+                stopCamera();
+            } else {
+                startCamera();
+            }
+        }
+
+        function captureFaceWithCamera() {
+            if (!cameraStream) {
+                alert("Please enable camera first!");
+                return;
+            }
+            
+            const video = document.getElementById('camera-feed');
+            const canvas = document.getElementById('camera-canvas');
+            const debugInfo = document.getElementById('camera-debug');
+            
+            // Capture frame from video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Show capture confirmation
+            debugInfo.innerHTML += `<br>📸 Photo captured: ${canvas.width}x${canvas.height}`;
+            
+            // Stop camera after capture
+            stopCamera();
+            
+            // Proceed with verification
+            proceedWithFaceVerification();
+        }
+
+        // --- NEW: Popup Challenge System ---
+        function triggerSecurityPopup(sessionId) {
+            if (currentChallengeId) {
+                console.log("Challenge already active:", currentChallengeId);
+                return;
+            }
+
+            // Show popup
+            document.getElementById('security-popup').style.display = 'flex';
+            
+            // Reset steps
+            document.getElementById('step1').style.display = 'block';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'none';
+            
+            // Start response timer
+            popupTriggerTime = Date.now();
+            startResponseTimer();
+            
+            // Notify backend
+            fetch('http://localhost:5000/trigger-challenge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                currentChallengeId = data.challenge_id;
+                console.log("Challenge triggered:", currentChallengeId);
+            })
+            .catch(error => {
+                console.error('Failed to trigger challenge:', error);
+                // Create a mock challenge ID if backend fails
+                currentChallengeId = 'mock_challenge_' + Date.now();
+            });
+        }
+
+        function startResponseTimer() {
+            let seconds = 0;
+            clearInterval(responseTimer);
+            responseTimer = setInterval(() => {
+                seconds++;
+                document.getElementById('response-timer').textContent = seconds + 's';
+            }, 1000);
+        }
+
+        function handleChallengeResponse() {
+            if (!currentChallengeId) return;
+
+            const responseTime = (Date.now() - popupTriggerTime) / 1000;
+            clearInterval(responseTimer);
+
+            console.log("User responded in:", responseTime + "s");
+            
+            // Move to step 2
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+            // AUTO-START CAMERA when moving to step 2
+            setTimeout(() => {
+                startCamera();
+            }, 500);
+            // Send response to backend
+            fetch('http://localhost:5000/challenge-response', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    challenge_id: currentChallengeId
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log("Challenge response:", data);
+                currentUserType = data.user_type;
+                
+                // Update UI based on response time
+                const step2 = document.getElementById('step2');
+                if (data.user_type === 'real_user') {
+                    step2.innerHTML += '<p class="result-success">✅ Quick response detected - Likely legitimate user</p>';
+                } else if (data.user_type === 'suspicious') {
+                    step2.innerHTML += '<p style="color: #ffaa00;">⚠️ Slow response - Suspicious activity</p>';
+                } else {
+                    step2.innerHTML += '<p class="result-failure">🚨 Very slow response - Potential attacker</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Challenge response failed:', error);
+                currentUserType = 'real_user'; // Default to real user for demo
+            });
+        }
+
+       function captureFace() {
+    if (!currentChallengeId) return;
+    // Use the camera capture function
+            captureFaceWithCamera();
+        }
+function proceedWithFaceVerification() { 
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'block';
+
+    console.log("Starting REAL face verification for:", currentChallengeId);
+    
+    // Use REAL face verification with registered users
+    fetch('http://localhost:5000/verify-face-real', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            user_id: 'surya'  // Change this to match your registered user
+        })
+    })
+            function captureFace() {
+            if (!currentChallengeId) return;
+
+            // Use the camera capture function
+            captureFaceWithCamera();
+        }
+
+        function proceedWithFaceVerification() {
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'block';
+
+            console.log("Starting face verification for:", currentChallengeId);
+            
+            // Use REAL face verification
+            fetch('http://localhost:5000/verify-face-real', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    user_id: 'hacker_123'  // Your registered User ID
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const resultElement = document.getElementById('verification-result');
+                const messageElement = document.getElementById('result-message');
+                
+                if (data.access_granted) {
+                    resultElement.innerHTML = '<div class="result-success">✅ Identity Verified</div>';
+                    messageElement.textContent = 'Face registered + Camera photo captured';
+                    document.getElementById('step3').classList.add('verified');
+                    
+                    // Restore access after delay
+                    setTimeout(() => {
+                        document.getElementById('security-popup').style.display = 'none';
+                        trustScore.textContent = '95';
+                        trustLevel.textContent = 'Verified';
+                        updateTrustStyling('verified');
+                        mitigationBanner.textContent = '🛡️ Full Access Restored';
+                        mitigationBanner.style.background = '#00ff88';
+                        
+                        // Reset challenge
+                        currentChallengeId = null;
+                        currentUserType = 'real_user';
+                    }, 3000);
+                } else {
+                    resultElement.innerHTML = '<div class="result-failure">❌ Access Denied</div>';
+                    messageElement.textContent = data.message;
+                    document.getElementById('step3').classList.add('failed');
+                    
+                    // Show registration page
+                    setTimeout(() => {
+                        window.location.href = '/face-registration';
+                    }, 3000);
+                }
+            })
+            .catch(error => {
+                console.error('Face verification error:', error);
+                const resultElement = document.getElementById('verification-result');
+                const messageElement = document.getElementById('result-message');
+                resultElement.innerHTML = '<div class="result-failure">❌ Verification Error</div>';
+                messageElement.textContent = 'Please register your face first';
+                
+                setTimeout(() => {
+                    window.location.href = '/face-registration';
+                }, 2000);
+            });
+        }
+        // 🚨 NEW: Red Alert Page Function
+function showRedAlertPage(alertMessage, userId) {
+    document.body.innerHTML = `
+        <div style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #ff0000, #8b0000);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 9999;
+            animation: alarmPulse 1s infinite;
+        ">
+            <div style="background: rgba(0,0,0,0.8); padding: 40px; border-radius: 15px; border: 5px solid #ff4444;">
+                <div style="font-size: 8em; margin-bottom: 20px;">🚨</div>
+                <h1 style="font-size: 3.5em; margin: 0; color: #ff4444; text-shadow: 0 0 20px #ff0000;">INTRUDER ALERT</h1>
+                <h2 style="font-size: 2em; margin: 20px 0; color: white;">UNAUTHORIZED ACCESS DETECTED</h2>
+                
+                <div style="background: #8b0000; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #ff4444;">
+                    <p style="font-size: 1.5em; margin: 10px 0;">🚫 <strong>User ID:</strong> ${userId}</p>
+                    <p style="font-size: 1.2em; margin: 10px 0;">📡 <strong>Threat Level:</strong> CRITICAL</p>
+                    <p style="font-size: 1.2em; margin: 10px 0;">🕵️ <strong>Reason:</strong> Unregistered biometric profile</p>
+                </div>
+                
+                <p style="font-size: 1.3em; margin: 30px 0; color: #ffcc00;">
+                    🔒 SECURITY PROTOCOL ENGAGED • SYSTEM LOCKDOWN INITIATED
+                </p>
+                
+                <div style="margin-top: 30px;">
+                    <button onclick="location.reload()" style="
+                        padding: 15px 30px;
+                        font-size: 1.2em;
+                        background: #ff4444;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        margin: 10px;
+                        border: 2px solid white;
+                    ">
+                        🚨 RESTART DEMO
+                    </button>
+                    <button onclick="location.href='/face-registration'" style="
+                        padding: 15px 30px;
+                        font-size: 1.2em;
+                        background: #0066cc;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        margin: 10px;
+                        border: 2px solid white;
+                    ">
+                        📷 REGISTER FACE
+                    </button>
+                </div>
+                
+                <p style="margin-top: 30px; font-size: 0.9em; opacity: 0.8;">
+                    Security Incident Logged • Authorities Notified • Session Terminated
+                </p>
+            </div>
+        </div>
+        
+        <style>
+            @keyframes alarmPulse {
+                0% { background: linear-gradient(45deg, #ff0000, #8b0000); }
+                50% { background: linear-gradient(45deg, #8b0000, #ff0000); }
+                100% { background: linear-gradient(45deg, #ff0000, #8b0000); }
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+            }
+        </style>
+    `;
+}
+    }
+    </script>
+</body>
+</html>

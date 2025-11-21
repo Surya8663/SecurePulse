@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Challenge Monitor</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f1419; color: white; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: #1a1f2e; padding: 20px; border-radius: 12px; }
+        .challenge-list { max-height: 500px; overflow-y: auto; }
+        .challenge-item { 
+            background: rgba(255,255,255,0.05); 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 8px;
+            border-left: 4px solid #ffaa00;
+        }
+        .challenge-item.real_user { border-left-color: #00ff88; }
+        .challenge-item.attacker { border-left-color: #ff4444; }
+        .challenge-item.verified { background: rgba(0,255,136,0.1); }
+        .challenge-item.failed { background: rgba(255,68,68,0.1); }
+        h1 { color: #00ff88; }
+        h2 { color: #66ccff; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .stat-card { background: #0a0e14; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 2em; font-weight: bold; }
+        .verified { color: #00ff88; }
+        .attacker { color: #ff4444; }
+        .pending { color: #ffaa00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Security Challenge Monitor</h1>
+            <p>Real-time monitoring of multi-factor authentication challenges</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-challenges">0</div>
+                <div>Total Challenges</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number verified" id="verified-challenges">0</div>
+                <div>Verified Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number attacker" id="blocked-challenges">0</div>
+                <div>Blocked Attacks</div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>Active Security Challenges</h2>
+                <div id="active-challenges" class="challenge-list">
+                    <!-- Challenges will appear here -->
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Challenge Analytics</h2>
+                <div id="analytics">
+                    <h3>Response Time Analysis</h3>
+                    <p>Real Users: &lt; 3 seconds</p>
+                    <p>Suspicious: 3-8 seconds</p> 
+                    <p>Attackers: &gt; 8 seconds</p>
+                    
+                    <h3>Success Rates</h3>
+                    <p>Real Users: 95% verification</p>
+                    <p>Attackers: 5% verification</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadChallengeData() {
+            fetch('http://localhost:5000/threat-intel')
+                .then(res => res.json())
+                .then(data => {
+                    updateChallengeDashboard(data.active_challenges);
+                });
+        }
+        
+        function updateChallengeDashboard(challenges) {
+            const container = document.getElementById('active-challenges');
+            container.innerHTML = '';
+            
+            let total = 0;
+            let verified = 0;
+            let blocked = 0;
+            
+            Object.entries(challenges).forEach(([challengeId, challenge]) => {
+                total++;
+                if (challenge.face_verified) verified++;
+                if (challenge.user_type === 'attacker' && !challenge.face_verified) blocked++;
+                
+                const item = document.createElement('div');
+                item.className = `challenge-item ${challenge.user_type} ${challenge.face_verified ? 'verified' : challenge.status === 'responded' ? 'failed' : ''}`;
+                
+                const responseTime = challenge.response_time ? `${challenge.response_time.toFixed(1)}s` : 'Pending';
+                const faceStatus = challenge.face_verified ? '✅ Verified' : (challenge.status === 'responded' ? '❌ Failed' : '⏳ Pending');
+                
+                item.innerHTML = `
+                    <strong>Challenge: ${challengeId.slice(0, 8)}...</strong><br>
+                    User Type: <span class="${challenge.user_type}">${challenge.user_type.toUpperCase()}</span><br>
+                    Response Time: ${responseTime}<br>
+                    Face Verification: ${faceStatus}<br>
+                    <small>Triggered: ${new Date(challenge.trigger_time).toLocaleTimeString()}</small>
+                `;
+                
+                container.appendChild(item);
+            });
+            
+            document.getElementById('total-challenges').textContent = total;
+            document.getElementById('verified-challenges').textContent = verified;
+            document.getElementById('blocked-challenges').textContent = blocked;
+        }
+        
+        // Refresh every 2 seconds
+        setInterval(loadChallengeData, 2000);
+        loadChallengeData();
+    </script>
+</body>
+</html>

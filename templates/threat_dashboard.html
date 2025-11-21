@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Threat Intelligence Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f1419; color: white; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: #1a1f2e; padding: 20px; border-radius: 12px; }
+        .threat-list { max-height: 400px; overflow-y: auto; }
+        .threat-item { 
+            background: rgba(255,255,255,0.05); 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 8px;
+            border-left: 4px solid #00ff88;
+        }
+        .threat-item.suspicious { border-left-color: #ffaa00; }
+        .threat-item.warning { border-left-color: #ff6600; }
+        .threat-item.anomaly { border-left-color: #ff4444; }
+        h1 { color: #00ff88; }
+        h2 { color: #66ccff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Threat Intelligence Dashboard</h1>
+            <p>Real-time behavioral anomaly detection and threat analysis</p>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>Recent Threat Events</h2>
+                <div id="threat-events" class="threat-list">
+                    <!-- Threat events will appear here -->
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Security Metrics</h2>
+                <canvas id="metricsChart"></canvas>
+            </div>
+            
+            <div class="card">
+                <h2>Active Sessions</h2>
+                <div id="active-sessions">
+                    <!-- Active sessions will appear here -->
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>System Status</h2>
+                <div id="system-status">
+                    <p>🟢 AI Model: <strong>Active</strong></p>
+                    <p>🟢 Behavioral Baseline: <strong>Established</strong></p>
+                    <p>🟢 Real-time Monitoring: <strong>Enabled</strong></p>
+                    <p>🟢 Threat Detection: <strong>Armed</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadThreatIntelligence() {
+            fetch('http://localhost:5000/threat-intel')
+                .then(res => res.json())
+                .then(data => {
+                    updateThreatEvents(data);
+                    updateActiveSessions(data);
+                });
+        }
+        
+        function updateThreatEvents(threatData) {
+            const container = document.getElementById('threat-events');
+            container.innerHTML = '';
+            
+            Object.entries(threatData).slice(-10).reverse().forEach(([sessionId, data]) => {
+                const item = document.createElement('div');
+                item.className = `threat-item ${data.trust_level.toLowerCase().split(' ')[0]}`;
+                
+                item.innerHTML = `
+                    <strong>Session: ${sessionId}</strong><br>
+                    Trust Score: ${data.trust_score}<br>
+                    Level: ${data.trust_level}<br>
+                    Action: ${data.mitigation_action}<br>
+                    <small>${new Date(data.timestamp).toLocaleTimeString()}</small>
+                `;
+                
+                container.appendChild(item);
+            });
+        }
+        
+        function updateActiveSessions(threatData) {
+            const container = document.getElementById('active-sessions');
+            const uniqueSessions = new Set(Object.keys(threatData));
+            
+            container.innerHTML = '';
+            uniqueSessions.forEach(sessionId => {
+                const sessionData = threatData[sessionId];
+                const p = document.createElement('p');
+                p.innerHTML = `🟢 ${sessionId} - Trust: ${sessionData.trust_score}`;
+                container.appendChild(p);
+            });
+        }
+        
+        // Refresh every 3 seconds
+        setInterval(loadThreatIntelligence, 3000);
+        loadThreatIntelligence();
+    </script>
+</body>
+</html>
