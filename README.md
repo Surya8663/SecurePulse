@@ -16,8 +16,6 @@ Installation & Setup
 
 API Endpoints
 
-Screenshots
-
 Future Enhancements
 
 Contributing
@@ -113,7 +111,7 @@ Follow these steps to run the project locally:
 1. Clone the Repository
 
 git clone [https://github.com/Surya8663/SecurePlus.git](https://github.com/Surya8663/SecurePlus.git)
-cd sentinelshield
+cd SecurePlus
 
 
 2. Create a Virtual Environment (Optional but Recommended)
